@@ -318,7 +318,7 @@ static void gpio_irq_handler(uint gpio, uint32_t events)
                 game[selected_pos] = 'X';                                   // Marca a Jogada no game
                 last_mark = 'X';                                            // Atualiza a ultima jogada
                 pwm_set_gpio_level(BUZZER_PIN, WRAP_PERIOD);                // Ativa o buzzer ao apertar o botão
-                add_alarm_in_ms(50, turn_off_buzzer_callback, NULL, false); // Desativa o buzzer após 50 ms
+                add_alarm_in_ms(100, turn_off_buzzer_callback, NULL, false); // Desativa o buzzer após 50 ms
                 tic_tac_toe();                                              // Verifica se "deu velha"
             }
         }
@@ -348,7 +348,7 @@ static void gpio_irq_handler(uint gpio, uint32_t events)
                 game[selected_pos] = 'O';                                   // Marca a Jogada no game
                 last_mark = 'O';                                            // Atualiza a ultima jogada
                 pwm_set_gpio_level(BUZZER_PIN, WRAP_PERIOD);                // Ativa o buzzer ao apertar o botão
-                add_alarm_in_ms(50, turn_off_buzzer_callback, NULL, false); // Desativa o buzzer após 50 ms
+                add_alarm_in_ms(100, turn_off_buzzer_callback, NULL, false); // Desativa o buzzer após 50 ms
                 tic_tac_toe();                                              // Verifica se "deu velha"
             }
         }
