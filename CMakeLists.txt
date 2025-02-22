@@ -59,6 +59,7 @@ target_link_libraries(DOOM
         hardware_clocks
         hardware_adc
         hardware_pwm
+        hardware_timer
         pico_bootrom
         )
 

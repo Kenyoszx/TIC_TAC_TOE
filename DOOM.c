@@ -9,6 +9,7 @@
 #include "hardware/pwm.h"
 #include "hardware/clocks.h"
 #include "pico/bootrom.h"
+#include "hardware/timer.h"
 
 // Definição dos Pinos
 #define I2C_SDA 14        // SDA display
@@ -16,6 +17,7 @@
 #define JOYSTICK_X_PIN 26 // eixo X
 #define JOYSTICK_Y_PIN 27 // eixo Y
 #define JOYSTICK_PB 22    // botão do Joystick
+#define BUZZER_PIN 21     // Buzzer
 #define BUTTON_A 5        // botão A
 #define BUTTON_B 6        // botão B
 #define LED_PIN_GREEN 11  // led verde
@@ -25,7 +27,7 @@
 // Constantes
 #define I2C_PORT i2c1           // porta i2c
 #define endereco 0x3C           // endereço da porta idc
-#define WRAP_PERIOD 4096        // Periodo de wrap
+#define WRAP_PERIOD 189         // Periodo de wrap
 #define ROW1 8                  // Posição da linha 1 do jogo da velha
 #define ROW2 30                 // Posição da linha 2 do jogo da velha
 #define ROW3 52                 // Posição da linha 3 do jogo da velha
@@ -49,6 +51,7 @@ static uint8_t display_x[9] = { // Vetor de Posições x para Os pontos do jogo
 static volatile uint32_t last_time = 0; // Armazena o tempo da ultima vez que o botão foi apertado (em microssegundos)
 static volatile uint screen = 0;        // Indica em qual tela o jogo está
 static volatile uint selected_pos;      // Indica a posição Atual selecionada
+static volatile uint slice_buzzer;      // Slice do Buzzer
 static volatile uint endgame = 0;       // Indica de que forma o jogo Acabou
 static volatile bool cor = true;        // Flag para o Display
 static volatile char last_mark;         // Armazena o ultimo ponto marcado 'X' ou 'O'
@@ -58,14 +61,16 @@ static volatile char game[9] = {        // Vetor que armazena os pontos no jogo
     ' ', ' ', ' '};
 
 // Protótipos das Funções
-static void gpio_irq_handler(uint gpio, uint32_t events); // Trata a interrupção Ao apertar um botão
-void init();                                              // inicializa o led verde e os botões
-void tic_tac_toe();                                       // Verifica se e como o jogo acabou
-void reinit_game();                                       // Reinicia o Jogo após o final da partida
-void win_led();                                           // Acende um LED de acordo com o vencedor do Jogo
-uint get_positon(uint16_t, uint16_t);                     // recebe a posição atual do seletor
-uint16_t limit_position_x(uint16_t);                      // Limita as posições em X para as do Jogo da velha
-uint16_t limit_position_y(uint16_t);                      // Limita as posições em Y para as do Jogo da velha
+static void gpio_irq_handler(uint gpio, uint32_t events);         // Trata a interrupção Ao apertar um botão
+void init();                                                      // inicializa o led verde e os botões
+void tic_tac_toe();                                               // Verifica se e como o jogo acabou
+void reinit_game();                                               // Reinicia o Jogo após o final da partida
+void win_led();                                                   // Acende um LED de acordo com o vencedor do Jogo
+uint pwm_init_gpio(uint gpio, uint wrap);                         // inicializa os LEDs PWM
+uint get_positon(uint16_t, uint16_t);                             // recebe a posição atual do seletor
+uint16_t limit_position_x(uint16_t);                              // Limita as posições em X para as do Jogo da velha
+uint16_t limit_position_y(uint16_t);                              // Limita as posições em Y para as do Jogo da velha
+int64_t turn_off_buzzer_callback(alarm_id_t id, void *user_data); // Função de retorno que desativa o Buzzer
 
 int main()
 {
@@ -81,6 +86,7 @@ int main()
 
     // Inicialização dos Pinos:
     init();
+    slice_buzzer = pwm_init_gpio(BUZZER_PIN, WRAP_PERIOD);
 
     // Inicialização do I2C:
     i2c_init(I2C_PORT, 400 * 1000);
@@ -309,9 +315,11 @@ static void gpio_irq_handler(uint gpio, uint32_t events)
             {
                 // Caso seja uma jogada válida marca no jogo e verifica se "deu velha"
 
-                game[selected_pos] = 'X'; // Marca a Jogada no game
-                last_mark = 'X';          // Atualiza a ultima jogada
-                tic_tac_toe();            // Verifica se "deu velha"
+                game[selected_pos] = 'X';                                   // Marca a Jogada no game
+                last_mark = 'X';                                            // Atualiza a ultima jogada
+                pwm_set_gpio_level(BUZZER_PIN, WRAP_PERIOD);                // Ativa o buzzer ao apertar o botão
+                add_alarm_in_ms(50, turn_off_buzzer_callback, NULL, false); // Desativa o buzzer após 50 ms
+                tic_tac_toe();                                              // Verifica se "deu velha"
             }
         }
         else if (gpio == JOYSTICK_PB)
@@ -337,9 +345,11 @@ static void gpio_irq_handler(uint gpio, uint32_t events)
             {
                 // Caso seja uma jogada válida marca no jogo e verifica se "deu velha"
 
-                game[selected_pos] = 'O'; // Marca a Jogada no game
-                last_mark = 'O';          // Atualiza a ultima jogada
-                tic_tac_toe();            // Verifica se "deu velha"
+                game[selected_pos] = 'O';                                   // Marca a Jogada no game
+                last_mark = 'O';                                            // Atualiza a ultima jogada
+                pwm_set_gpio_level(BUZZER_PIN, WRAP_PERIOD);                // Ativa o buzzer ao apertar o botão
+                add_alarm_in_ms(50, turn_off_buzzer_callback, NULL, false); // Desativa o buzzer após 50 ms
+                tic_tac_toe();                                              // Verifica se "deu velha"
             }
         }
     }
@@ -490,4 +500,20 @@ void win_led()
     {
         gpio_put(LED_PIN_GREEN, true);
     }
+}
+int64_t turn_off_buzzer_callback(alarm_id_t id, void *user_data)
+{
+    // desativa o buzzer
+    pwm_set_gpio_level(BUZZER_PIN, 0);
+}
+uint pwm_init_gpio(uint gpio, uint wrap)
+{
+    // Inicializa um pino como PWM
+    gpio_set_function(gpio, GPIO_FUNC_PWM);
+
+    uint slice_num = pwm_gpio_to_slice_num(gpio);
+    pwm_set_wrap(slice_num, wrap);
+
+    pwm_set_enabled(slice_num, true);
+    return slice_num;
 }
