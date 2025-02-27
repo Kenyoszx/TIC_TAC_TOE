@@ -34,6 +34,9 @@ O algoritmo implementa o Jogo da velha em um display ssd1306 128 x 64 utilizando
 - LED Azul: Pino GPIO 12.
 - LED Verde: Pino GPIO 11.
 
+## Video Demonstrativo do funcionamento
+[Demonstração: Jogo da Velha](https://drive.google.com/file/d/1k56B7Z-NjEj3ovb-1Q3GeRj7Uu1XppAs/view?usp=sharing)
+
 ## Configuração do Ambiente
 
 Antes de começar, certifique-se de que você tenha o ambiente de desenvolvimento do **Raspberry Pi Pico** configurado corretamente. Siga as instruções do [Raspberry Pi Pico SDK](https://www.raspberrypi.org/documentation/rp2040/getting-started/) para configurar o SDK e as ferramentas de compilação.
